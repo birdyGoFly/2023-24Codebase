@@ -53,8 +53,7 @@ import com.qualcomm.robotcore.util.Range;
 
 @TeleOp(name="My First TeleOp", group="Iterative OpMode")
 
-public class MyFirstTeleOp extends OpMode
-{
+public class MyFirstTeleOp extends OpMode {
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
     private DcMotor frontLeft = null;
@@ -64,6 +63,7 @@ public class MyFirstTeleOp extends OpMode
     private DcMotor linAc = null;
     private DcMotor linAcRotation = null;
     private Servo gate = null;
+    private Servo drone = null;
 
     // Setup a variable for each drive wheel to save power level for telemetry
     double leftPower = 0;
@@ -71,6 +71,22 @@ public class MyFirstTeleOp extends OpMode
 
     boolean buttonCheck = false;
     boolean open = false;
+
+    int toDegrees = 4;
+
+    double linAcRotationPower = 0.25;
+    double linAcPower = 1;
+
+    boolean isLinAcActivated = false;
+
+    int linAcRotationTarget = 0;
+
+    boolean intakeMode = false;
+
+    //boolean hangMode = false;   I made a change here (I commented it out)
+
+    boolean hangCheck = false;
+    boolean launch = false;
 
     /*
      * Code to run ONCE when the driver hits INIT
@@ -89,6 +105,7 @@ public class MyFirstTeleOp extends OpMode
         linAc = hardwareMap.get(DcMotor.class, "linear actuator");
         linAcRotation = hardwareMap.get(DcMotor.class, "linear actuator rotation");
         gate = hardwareMap.get(Servo.class, "gate servo");
+        drone = hardwareMap.get(Servo.class, "drone servo");
 
 
         // To drive forward, most robots need the motor on one side to be reversed, because the axles point in opposite directions.
@@ -99,6 +116,19 @@ public class MyFirstTeleOp extends OpMode
         frontRight.setDirection(DcMotor.Direction.FORWARD);
         backRight.setDirection(DcMotorSimple.Direction.FORWARD);
 
+
+        linAcRotation.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        linAcRotation.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        linAcRotation.setPower(0.25);
+
+        linAc.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        linAc.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        linAc.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+        //linAc.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        //linAc.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+
+        drone.setPosition(0.25);
         moveGate(open);
 
         // Tell the driver that initialization is complete.
@@ -127,6 +157,8 @@ public class MyFirstTeleOp extends OpMode
     public void loop() {
 
 
+
+/*
         // Choose to drive using either Tank Mode, or POV Mode
         // Comment out the method that's not used.  The default below is POV.
 
@@ -148,20 +180,117 @@ public class MyFirstTeleOp extends OpMode
         frontRight.setPower(rightPower);
         backRight.setPower(rightPower);
 
-        if(gamepad1.a && !buttonCheck){
+        */
+
+
+        double y = -gamepad1.right_stick_y; // Remember, Y stick value is reversed
+        double x = gamepad1.right_stick_x * 1.1; // Counteract imperfect strafing
+        double rx = gamepad1.left_stick_x;
+
+        // Denominator is the largest motor power (absolute value) or 1
+        // This ensures all the powers maintain the same ratio,
+        // but only if at least one is out of the range [-1, 1]
+        double denominator = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1);
+        double frontLeftPower = (y + x + rx) / denominator;
+        double backLeftPower = (y - x + rx) / denominator;
+        double frontRightPower = (y - x - rx) / denominator;
+        double backRightPower = (y + x - rx) / denominator;
+
+        frontLeft.setPower(frontLeftPower);
+        backLeft.setPower(backLeftPower);
+        frontRight.setPower(frontRightPower);
+        backRight.setPower(backRightPower);
+
+        //-------------------------------------- GATE STUFF
+
+        if (gamepad1.a && !buttonCheck) {
             buttonCheck = true;
         }
 
-        if(!gamepad1.a && buttonCheck){
+        if (!gamepad1.a && buttonCheck) {
             buttonCheck = false;
             open = !open;
         }
 
         moveGate(open);
+        //-------------------------------------- DRONE OPERATION
+
+        if(gamepad1.x){
+            launch = true;
+            drone.setPosition(0.5);
+        }
+
+        //-------------------------------------- ARM OPERATION
+
+        linAcRotation.setTargetPosition(linAcRotationTarget);
+/*
+        if (gamepad1.right_bumper) {
+            linAcRotation.setPower(linAcRotationPower);
+            isLinAcActivated = true;
+        }
+        if (gamepad1.right_trigger > 0.05) {
+            linAcRotation.setPower(-linAcRotationPower * gamepad1.right_trigger);
+            isLinAcActivated = true;
+        }
+        if (!gamepad1.right_bumper && gamepad1.right_trigger < 0.05 && isLinAcActivated) {
+            linAcRotation.setPower(0);
+        }
+
+
+ */
+
+        if (gamepad1.left_bumper) {
+            linAc.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            linAc.setPower(linAcPower);
+        }
+        if (gamepad1.left_trigger > 0.05) {
+            linAc.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            linAc.setPower(-linAcPower);
+        }
+        if (!gamepad1.left_bumper && gamepad1.left_trigger < 0.05 && !hangCheck) {
+            linAc.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            linAc.setPower(0);
+        }
+
+
+/*
+        if (gamepad1.b) {
+            intakePosition(true);
+        } else {
+            intakePosition(false);
+        }
+*/
+        if (gamepad1.y) {
+            hangMode(true);
+        }
+        if (!gamepad1.y) {
+            hangMode(false);
+        }
+
+        if(gamepad1.right_trigger >= 0.1){
+            linAcRotation.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            linAcRotationTarget = linAcRotationTarget + 3;
+        }
+        if(gamepad1.right_bumper){
+            linAcRotation.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            linAcRotationTarget = linAcRotationTarget - 3;
+        }
+
+
+
+        //--------------------------------------
+/*
+        if (!isLinAcActivated) {
+            linAcRotation.setPower(0.1);
+        }
+*/
 
         // Show the elapsed game time and wheel power.
         telemetry.addData("Status", "Run Time: " + runtime.toString());
         telemetry.addData("Motors", "left (%.2f), right (%.2f)", leftPower, rightPower);
+        telemetry.addData("linAcRotation", "%7d", linAcRotation.getCurrentPosition()/toDegrees/*I made a change right here*/);
+        telemetry.addData("linAcRotation Encoder", "%7d", linAcRotation.getCurrentPosition());
+        telemetry.addData("linAcExtension", "%7d", linAc.getCurrentPosition());
     }
 
     /*
@@ -170,16 +299,54 @@ public class MyFirstTeleOp extends OpMode
     @Override
     public void stop() {
     }
-    public void moveGate(boolean isGateOpen){
-        if(isGateOpen){
+
+    public void moveGate(boolean isGateOpen) {
+        if (isGateOpen) {
             gate.setPosition(1);
-        }
-        else{
+        } else {
             gate.setPosition(0.75);
         }
 
     }
+/*
+    public void intakePosition(boolean intakeMode) {
+        if (intakeMode) {
+            linAcRotation.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+            linAcRotation.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            linAcRotation.setTargetPosition(-875);
+            linAcRotation.setPower(1);
+        } else {
+            //linAcRotation.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        }
+    }
+*/
+    public void hangMode(boolean hangTime) {
+        if (hangTime) {
+            //linAc.setTargetPosition(9515);
+            linAcRotationTarget = 360;
+            linAcRotation.setPower(0.75);
+            linAc.setPower(1);
+            linAc.setTargetPosition(9000);
+            hangCheck = true;
+            //if(linAc.getCurrentPosition()>=){
 
-
-
+            }
+        else{
+            if(gamepad1.right_bumper)
+            linAcRotation.setPower(0.25);
+            linAcRotationTarget = 0;
+            linAc.setTargetPosition(0);
+            hangCheck = false;
+        }
+    }
 }
+
+
+/*
+//            linAcRotation.setPower(0.75;
+            //linAcRotation.setTargetPosition(-90*toDegrees);
+            linAc.setPower(1);
+            //linAc.setTargetPosition(9430);
+            //linAc.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            //linAcRotation.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+*/

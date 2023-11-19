@@ -27,7 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.firstinspires.ftc.robotcontroller.external.samples;
+package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
@@ -63,9 +63,9 @@ import com.qualcomm.robotcore.util.ElapsedTime;
  * Remove or comment out the @Disabled line to add this OpMode to the Driver Station OpMode list
  */
 
-@Autonomous(name="Robot: Auto Drive By Encoder", group="Robot")
-@Disabled
-public class RobotAutoDriveByEncoder_Linear extends LinearOpMode {
+@Autonomous(name="Robot: My Auto Drive By Encoder", group="Robot")
+
+public class MyRobotAutoDriveByEncoder_Linear extends LinearOpMode {
 
     /* Declare OpMode members. */
     private DcMotor frontLeft = null;
@@ -83,13 +83,13 @@ public class RobotAutoDriveByEncoder_Linear extends LinearOpMode {
     // For example, use a value of 2.0 for a 12-tooth spur gear driving a 24-tooth spur gear.
     // This is gearing DOWN for less speed and more torque.
     // For gearing UP, use a gear ratio less than 1.0. Note this will affect the direction of wheel rotation.
-    static final double     COUNTS_PER_MOTOR_REV    = 1440 ;    // eg: TETRIX Motor Encoder
+    static final double     COUNTS_PER_MOTOR_REV    = 537.7 ;    // GoBilda 5205 Motors
     static final double     DRIVE_GEAR_REDUCTION    = 1.0 ;     // No External Gearing.
-    static final double     WHEEL_DIAMETER_INCHES   = 4.0 ;     // For figuring circumference
+    static final double     WHEEL_DIAMETER_INCHES   = 3.77953 ;     // For figuring circumference
     static final double     COUNTS_PER_INCH         = (COUNTS_PER_MOTOR_REV * DRIVE_GEAR_REDUCTION) /
                                                       (WHEEL_DIAMETER_INCHES * 3.1415);
-    static final double     DRIVE_SPEED             = 0.6;
-    static final double     TURN_SPEED              = 0.5;
+    static final double     DRIVE_SPEED             = 0.4;
+    static final double     TURN_SPEED              = 0.4;
 
     @Override
     public void runOpMode() {
@@ -135,9 +135,20 @@ public class RobotAutoDriveByEncoder_Linear extends LinearOpMode {
 
         // Step through each leg of the path,
         // Note: Reverse movement is obtained by setting a negative distance (not speed)
-        encoderDrive(DRIVE_SPEED,  48,  48, 5.0);  // S1: Forward 47 Inches with 5 Sec timeout
-        encoderDrive(TURN_SPEED,   12, -12, 4.0);  // S2: Turn Right 12 Inches with 4 Sec timeout
-        encoderDrive(DRIVE_SPEED, -24, -24, 4.0);  // S3: Reverse 24 Inches with 4 Sec timeout
+
+
+        encoderDrive(DRIVE_SPEED,  24.5,  24.5, 5.0);
+        sleep(1000);
+        encoderDrive(TURN_SPEED,   -24.52544, 24.52544  , 4.0);
+        //armRunToPosition(130, 0.25);
+        encoderDrive(DRIVE_SPEED, 85, 85, 4.0);
+        //linAcRotation.setPower(0);
+        //armRunToPosition(-330, -0.25);
+        //sleep(1000);
+        armExtension(13300, 0.25);
+        sleep(1000);
+        armRunToPosition(-340, -0.25);
+        sleep(2500);
 
         telemetry.addData("Path", "Complete");
         telemetry.update();
@@ -152,9 +163,7 @@ public class RobotAutoDriveByEncoder_Linear extends LinearOpMode {
      *  2) Move runs out of time
      *  3) Driver stops the OpMode running.
      */
-    public void encoderDrive(double speed,
-                             double leftInches, double rightInches,
-                             double timeoutS) {
+    public void encoderDrive(double speed,double leftInches, double rightInches, double timeoutS) {
         int newLeftTarget;
         int newRightTarget;
 
@@ -162,8 +171,12 @@ public class RobotAutoDriveByEncoder_Linear extends LinearOpMode {
         if (opModeIsActive()) {
 
             // Determine new target position, and pass to motor controller
-            newLeftTarget = ((frontLeft.getCurrentPosition() + backLeft.getCurrentPosition()) / 2) + (int)(leftInches * COUNTS_PER_INCH);
-            newRightTarget = ((frontLeft.getCurrentPosition() + backLeft.getCurrentPosition()) / 2) + (int)(rightInches * COUNTS_PER_INCH);
+            frontLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            frontRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            backLeft.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            backRight.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            newLeftTarget = /*((frontLeft.getCurrentPosition() + backLeft.getCurrentPosition()) / 2) + */ (int)(leftInches * COUNTS_PER_INCH);
+            newRightTarget = /*((frontLeft.getCurrentPosition() + backLeft.getCurrentPosition()) / 2) + */ (int)(rightInches * COUNTS_PER_INCH);
             frontLeft.setTargetPosition(newLeftTarget);
             frontRight.setTargetPosition(newRightTarget);
             backLeft.setTargetPosition(newLeftTarget);
@@ -172,7 +185,7 @@ public class RobotAutoDriveByEncoder_Linear extends LinearOpMode {
             // Turn On RUN_TO_POSITION
             frontLeft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
             frontRight.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            frontLeft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            backLeft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
             backRight.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
             // reset the timeout time and start motion.
@@ -188,9 +201,11 @@ public class RobotAutoDriveByEncoder_Linear extends LinearOpMode {
             // always end the motion as soon as possible.
             // However, if you require that BOTH motors have finished their moves before the robot continues
             // onto the next step, use (isBusy() || isBusy()) in the loop test.
-            while (opModeIsActive() &&
-                   (runtime.seconds() < timeoutS) &&
-                   (frontLeft.isBusy() && frontRight.isBusy() && backLeft.isBusy() && backRight.isBusy() )) {
+            while (opModeIsActive() && (runtime.seconds() < timeoutS) &&
+                    (frontLeft.isBusy() && backRight.isBusy())) {
+                //&&
+                //                    &&
+                //      (frontLeft.isBusy() && frontRight.isBusy() && backLeft.isBusy() && backRight.isBusy() )
 
                 // Display it for the driver.
                 telemetry.addData("Running to",  " %7d :%7d", newLeftTarget,  newRightTarget);
@@ -216,5 +231,39 @@ public class RobotAutoDriveByEncoder_Linear extends LinearOpMode {
 
             sleep(250);   // optional pause after each move.
         }
+    }
+
+    public void armRunToPosition(int armTargetPosition, double power) {
+
+        int armTarget;
+
+        linAcRotation.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        armTarget = (int) (armTargetPosition * COUNTS_PER_INCH);
+        linAcRotation.setTargetPosition(armTarget);
+        linAcRotation.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+
+        while(linAcRotation.getCurrentPosition() < armTargetPosition){
+        linAcRotation.setPower(power);
+        }
+        linAcRotation.setPower(0);
+    }
+
+
+
+
+    public void armExtension(int armTargetExtension, double power){
+
+        int extensionTarget;
+
+        linAc.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        extensionTarget = (int)(armTargetExtension * COUNTS_PER_INCH);
+        linAc.setTargetPosition(extensionTarget);
+        linAc.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        linAc.setPower(power);
+        while(Math.abs(linAcRotation.getCurrentPosition()) < Math.abs(armTargetExtension)){
+            linAcRotation.setPower(power);
+        }
+        linAcRotation.setPower(0);
     }
 }
